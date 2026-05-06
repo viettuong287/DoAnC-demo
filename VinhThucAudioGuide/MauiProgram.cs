@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using SkiaSharp.Views.Maui.Controls.Hosting;
 using ZXing.Net.Maui.Controls;
 using Microsoft.Maui.Storage;
@@ -26,6 +26,9 @@ namespace VinhThucAudioGuide
 #if DEBUG
             builder.Logging.AddDebug();
 #endif
+
+            builder.Services.AddSingleton<Services.LocalDbService>();
+            builder.Services.AddSingleton<Services.ApiService>();
 
             return builder.Build();
         }

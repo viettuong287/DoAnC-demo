@@ -1,4 +1,4 @@
-﻿using SQLite;
+using SQLite;
 
 namespace VinhThucAudioGuide.Models;
 
@@ -6,6 +6,7 @@ public class Script
 {
     [PrimaryKey, AutoIncrement]
     public int Id { get; set; }
+    public string ServerId { get; set; } // Liên kết với Id (Guid) trên Server
 
     public int LocationId { get; set; } // Liên kết với bảng Location
     public int LanguageId { get; set; } // Liên kết với bảng Language

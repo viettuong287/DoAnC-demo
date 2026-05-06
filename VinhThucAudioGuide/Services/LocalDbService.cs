@@ -150,4 +150,90 @@ public class LocalDbService
 
         return added;
     }
+
+    public async Task SyncWithServerAsync(ApiService apiService)
+    {
+        await Init();
+        
+        var data = await apiService.GetSyncDataAsync();
+        if (data == null) return; // Offline hoặc lỗi, dùng dữ liệu cũ
+
+        // 1. Sync Languages
+        foreach (var langData in data.Languages)
+        {
+            var existing = await _db.Table<Language>().Where(l => l.ServerId == langData.ServerId || l.LangCode == langData.Code).FirstOrDefaultAsync();
+            if (existing == null)
+            {
+                await _db.InsertAsync(new Language { ServerId = langData.ServerId, LangCode = langData.Code, LangName = langData.Name });
+            }
+            else
+            {
+                existing.ServerId = langData.ServerId;
+                existing.LangName = langData.Name;
+                await _db.UpdateAsync(existing);
+            }
+        }
+
+        // 2. Sync Locations
+        foreach (var locData in data.Locations)
+        {
+            var existing = await _db.Table<TourLocation>().Where(t => t.ServerId == locData.ServerId || t.LocationName == locData.Name).FirstOrDefaultAsync();
+            if (existing == null)
+            {
+                var newLoc = new TourLocation
+                {
+                    ServerId = locData.ServerId,
+                    LocationName = locData.Name,
+                    Category = locData.Category,
+                    ImageUrl = locData.ImageUrl,
+                    Latitude = locData.Latitude,
+                    Longitude = locData.Longitude
+                };
+                await _db.InsertAsync(newLoc);
+                
+                // Tự động tạo QR Code cho location mới
+                string qrCode = "QR_" + locData.Name.Replace(" ", "").ToUpper();
+                await _db.InsertAsync(new QRCodeData { CodeValue = qrCode, LocationId = newLoc.Id });
+            }
+            else
+            {
+                existing.ServerId = locData.ServerId;
+                existing.LocationName = locData.Name;
+                existing.Category = locData.Category;
+                existing.ImageUrl = locData.ImageUrl;
+                existing.Latitude = locData.Latitude;
+                existing.Longitude = locData.Longitude;
+                await _db.UpdateAsync(existing);
+            }
+        }
+
+        // 3. Sync Scripts
+        foreach (var scriptData in data.Scripts)
+        {
+            var loc = await _db.Table<TourLocation>().Where(t => t.ServerId == scriptData.LocationId).FirstOrDefaultAsync();
+            var lang = await _db.Table<Language>().Where(l => l.ServerId == scriptData.LanguageId).FirstOrDefaultAsync();
+            
+            if (loc == null || lang == null) continue;
+
+            var existing = await _db.Table<Script>().Where(s => s.ServerId == scriptData.ServerId || (s.LocationId == loc.Id && s.LanguageId == lang.Id)).FirstOrDefaultAsync();
+            if (existing == null)
+            {
+                await _db.InsertAsync(new Script
+                {
+                    ServerId = scriptData.ServerId,
+                    LocationId = loc.Id,
+                    LanguageId = lang.Id,
+                    Title = scriptData.Title,
+                    Content = scriptData.Content
+                });
+            }
+            else
+            {
+                existing.ServerId = scriptData.ServerId;
+                existing.Title = scriptData.Title;
+                existing.Content = scriptData.Content;
+                await _db.UpdateAsync(existing);
+            }
+        }
+    }
 }
