@@ -7,8 +7,9 @@ namespace VinhThucAudioGuide.Services;
 public class ApiService
 {
     private readonly HttpClient _httpClient;
-    // Thay đổi base URL theo địa chỉ IP của server.
-    // Nếu chạy máy ảo Android (Emulator), localhost của máy host là 10.0.2.2
+    // CHÚ Ý: 
+    // 1. Dùng http://10.0.2.2:5000/api/ nếu chạy trên Giả lập Android (Emulator)
+    // 2. Dùng IP máy tính (VD: http://192.168.1.5:5000/api/) nếu chạy trên Điện thoại thật
     private const string BaseUrl = "http://10.0.2.2:5000/api/"; 
 
     public ApiService()

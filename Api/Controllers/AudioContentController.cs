@@ -35,7 +35,7 @@ public class AudioContentController : ControllerBase
             {
                 ServerId = s.Id.ToString(),
                 Name = s.Name,
-                Category = "Tour", 
+                Category = s.Category ?? "Vui chơi", // Đồng bộ danh mục từ Web
                 Description = s.Description,
                 ImageUrl = s.StallMedia.Where(m => m.IsActive).OrderBy(m => m.SortOrder).Select(m => m.MediaUrl).FirstOrDefault(),
                 Latitude = s.StallLocations.Where(l => l.IsActive).Select(l => (double)l.Latitude).FirstOrDefault(),
