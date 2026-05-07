@@ -14,12 +14,17 @@ public partial class SplashPage : ContentPage
         var localDb = IPlatformApplication.Current?.Services.GetService<Services.LocalDbService>();
         var apiService = IPlatformApplication.Current?.Services.GetService<Services.ApiService>();
 
-        // Chạy đồng bộ ngầm và chờ 3 giây (hoặc chờ đồng bộ xong tuỳ thời gian)
         var syncTask = Task.Run(async () => 
         {
             if (localDb != null && apiService != null)
             {
+                // 1. Đồng bộ dữ liệu POI
                 await localDb.SyncWithServerAsync(apiService);
+
+                // 2. Đăng ký thông tin thiết bị lên Server để Admin quản lý
+                var languages = await localDb.GetAllLanguages();
+                var defaultLangId = languages.FirstOrDefault()?.ServerId ?? Guid.Empty.ToString();
+                await apiService.RegisterDeviceAsync(defaultLangId);
             }
         });
 

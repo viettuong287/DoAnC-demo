@@ -25,7 +25,6 @@ public class ApiService
     {
         try
         {
-            // Kiểm tra kết nối mạng trước khi gọi API
             if (Connectivity.Current.NetworkAccess != NetworkAccess.Internet)
             {
                 return null;
@@ -34,7 +33,6 @@ public class ApiService
             var url = "audiocontent/sync";
             if (lastSync.HasValue)
             {
-                // Truyền lastSync qua Query, dùng định dạng ISO 8601 (O)
                 url += $"?lastSync={Uri.EscapeDataString(lastSync.Value.ToString("O"))}";
             }
 
@@ -49,6 +47,45 @@ public class ApiService
             Console.WriteLine($"Error fetching data from API: {ex.Message}");
         }
         return null;
+    }
+
+    /// <summary>
+    /// Đăng ký hoặc cập nhật thông tin thiết bị lên Server để Admin quản lý
+    /// </summary>
+    public async Task RegisterDeviceAsync(string languageId)
+    {
+        try
+        {
+            if (Connectivity.Current.NetworkAccess != NetworkAccess.Internet) return;
+
+            // 1. Lấy hoặc tạo DeviceId duy nhất cho máy này
+            var deviceId = Preferences.Default.Get("UniqueDeviceId", string.Empty);
+            if (string.IsNullOrEmpty(deviceId))
+            {
+                deviceId = Guid.NewGuid().ToString();
+                Preferences.Default.Set("UniqueDeviceId", deviceId);
+            }
+
+            // 2. Thu thập thông tin phần cứng
+            var deviceDto = new
+            {
+                DeviceId = deviceId,
+                LanguageId = languageId,
+                Platform = DeviceInfo.Current.Platform.ToString(),
+                DeviceModel = DeviceInfo.Current.Model,
+                Manufacturer = DeviceInfo.Current.Manufacturer,
+                OsVersion = DeviceInfo.Current.VersionString,
+                SpeechRate = 1.0,
+                AutoPlay = true
+            };
+
+            // 3. Gửi lên Server (API Upsert)
+            await _httpClient.PostAsJsonAsync("device-preference", deviceDto);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error registering device: {ex.Message}");
+        }
     }
 }
 
