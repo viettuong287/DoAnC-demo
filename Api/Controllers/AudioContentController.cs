@@ -18,12 +18,19 @@ public class AudioContentController : ControllerBase
     }
 
     [HttpGet("sync")]
-    public async Task<IActionResult> SyncData()
+    public async Task<IActionResult> SyncData([FromQuery] DateTimeOffset? lastSync)
     {
-        var locations = await _context.Stalls
+        var stallQuery = _context.Stalls
             .Include(s => s.StallLocations)
             .Include(s => s.StallMedia)
-            .Where(s => s.IsActive)
+            .Where(s => s.IsActive);
+
+        if (lastSync.HasValue)
+        {
+            stallQuery = stallQuery.Where(s => s.UpdatedAt >= lastSync || s.CreatedAt >= lastSync);
+        }
+
+        var locations = await stallQuery
             .Select(s => new
             {
                 ServerId = s.Id.ToString(),
@@ -32,7 +39,8 @@ public class AudioContentController : ControllerBase
                 Description = s.Description,
                 ImageUrl = s.StallMedia.Where(m => m.IsActive).OrderBy(m => m.SortOrder).Select(m => m.MediaUrl).FirstOrDefault(),
                 Latitude = s.StallLocations.Where(l => l.IsActive).Select(l => (double)l.Latitude).FirstOrDefault(),
-                Longitude = s.StallLocations.Where(l => l.IsActive).Select(l => (double)l.Longitude).FirstOrDefault()
+                Longitude = s.StallLocations.Where(l => l.IsActive).Select(l => (double)l.Longitude).FirstOrDefault(),
+                IsActive = s.IsActive
             })
             .ToListAsync();
 
@@ -46,15 +54,23 @@ public class AudioContentController : ControllerBase
             })
             .ToListAsync();
 
-        var scripts = await _context.StallNarrationContents
-            .Where(c => c.IsActive && c.Stall.IsActive)
+        var scriptQuery = _context.StallNarrationContents
+            .Where(c => c.Stall.IsActive); // Lấy cả những kịch bản không active để app biết mà ẩn
+
+        if (lastSync.HasValue)
+        {
+            scriptQuery = scriptQuery.Where(c => c.UpdatedAt >= lastSync);
+        }
+
+        var scripts = await scriptQuery
             .Select(c => new
             {
                 ServerId = c.Id.ToString(),
                 LocationId = c.StallId.ToString(),
                 LanguageId = c.LanguageId.ToString(),
                 Title = c.Title,
-                Content = c.ScriptText
+                Content = c.ScriptText,
+                IsActive = c.IsActive
             })
             .ToListAsync();
 

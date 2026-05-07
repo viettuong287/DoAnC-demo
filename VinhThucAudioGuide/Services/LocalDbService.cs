@@ -23,7 +23,7 @@ public class LocalDbService
         await _db.CreateTableAsync<QRCodeData>();
         await _db.CreateTableAsync<UserDevice>();
 
-        await SeedData();
+        // await SeedData(); // Đã tắt dữ liệu mẫu HCM để đồng bộ thực tế từ Web CMS
     }
 
     public async Task<Dictionary<string, string>> GetScriptsForLocation(int locationId)
@@ -155,7 +155,15 @@ public class LocalDbService
     {
         await Init();
         
-        var data = await apiService.GetSyncDataAsync();
+        // Lấy thời gian đồng bộ thành công gần nhất
+        var lastSyncStr = Preferences.Get("LastSyncTime", string.Empty);
+        DateTimeOffset? lastSync = null;
+        if (!string.IsNullOrEmpty(lastSyncStr) && DateTimeOffset.TryParse(lastSyncStr, out var parsedDate))
+        {
+            lastSync = parsedDate;
+        }
+
+        var data = await apiService.GetSyncDataAsync(lastSync);
         if (data == null) return; // Offline hoặc lỗi, dùng dữ liệu cũ
 
         // 1. Sync Languages
@@ -180,6 +188,9 @@ public class LocalDbService
             var existing = await _db.Table<TourLocation>().Where(t => t.ServerId == locData.ServerId || t.LocationName == locData.Name).FirstOrDefaultAsync();
             if (existing == null)
             {
+                // Nếu địa điểm mới đã bị xóa trên server thì không cần insert
+                if (!locData.IsActive) continue;
+
                 var newLoc = new TourLocation
                 {
                     ServerId = locData.ServerId,
@@ -187,7 +198,8 @@ public class LocalDbService
                     Category = locData.Category,
                     ImageUrl = locData.ImageUrl,
                     Latitude = locData.Latitude,
-                    Longitude = locData.Longitude
+                    Longitude = locData.Longitude,
+                    IsActive = locData.IsActive
                 };
                 await _db.InsertAsync(newLoc);
                 
@@ -197,12 +209,14 @@ public class LocalDbService
             }
             else
             {
+                // Cập nhật toàn bộ thông tin mới nhất
                 existing.ServerId = locData.ServerId;
                 existing.LocationName = locData.Name;
                 existing.Category = locData.Category;
                 existing.ImageUrl = locData.ImageUrl;
                 existing.Latitude = locData.Latitude;
                 existing.Longitude = locData.Longitude;
+                existing.IsActive = locData.IsActive;
                 await _db.UpdateAsync(existing);
             }
         }
@@ -235,5 +249,8 @@ public class LocalDbService
                 await _db.UpdateAsync(existing);
             }
         }
+
+        // Lưu lại thời gian đã đồng bộ thành công
+        Preferences.Set("LastSyncTime", DateTimeOffset.UtcNow.ToString("O"));
     }
 }

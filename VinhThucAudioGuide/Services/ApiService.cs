@@ -20,7 +20,7 @@ public class ApiService
         };
     }
 
-    public async Task<SyncDataResponse> GetSyncDataAsync()
+    public async Task<SyncDataResponse> GetSyncDataAsync(DateTimeOffset? lastSync = null)
     {
         try
         {
@@ -30,7 +30,14 @@ public class ApiService
                 return null;
             }
 
-            var response = await _httpClient.GetAsync("audiocontent/sync");
+            var url = "audiocontent/sync";
+            if (lastSync.HasValue)
+            {
+                // Truyền lastSync qua Query, dùng định dạng ISO 8601 (O)
+                url += $"?lastSync={Uri.EscapeDataString(lastSync.Value.ToString("O"))}";
+            }
+
+            var response = await _httpClient.GetAsync(url);
             if (response.IsSuccessStatusCode)
             {
                 return await response.Content.ReadFromJsonAsync<SyncDataResponse>();
@@ -60,6 +67,7 @@ public class SyncLocation
     public string ImageUrl { get; set; }
     public double Latitude { get; set; }
     public double Longitude { get; set; }
+    public bool IsActive { get; set; }
 }
 
 public class SyncLanguage
@@ -76,4 +84,5 @@ public class SyncScript
     public string LanguageId { get; set; }
     public string Title { get; set; }
     public string Content { get; set; }
+    public bool IsActive { get; set; }
 }

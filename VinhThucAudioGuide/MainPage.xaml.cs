@@ -1,4 +1,4 @@
-﻿using Mapsui;
+using Mapsui;
 using Mapsui.Layers;
 using Mapsui.Projections;
 using Mapsui.Providers;
@@ -125,8 +125,8 @@ namespace VinhThucAudioGuide
             var dbService = new VinhThucAudioGuide.Services.LocalDbService();
             var danhSachTuDB = await dbService.GetAllTourLocations();
 
-            // 3. Quét qua DB và nặn ra các điểm POI
-            foreach (var loc in danhSachTuDB)
+            // 3. Quét qua DB và nặn ra các điểm POI (Chỉ lấy những điểm đang hoạt động)
+            foreach (var loc in danhSachTuDB.Where(l => l.IsActive))
             {
                 var poiMoi = new POI
                 {
@@ -154,11 +154,20 @@ namespace VinhThucAudioGuide
             // 4. Bơm dữ liệu ra UI (Bắt buộc phải nằm trong MainThread)
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                // Dọn sạch ghim trên bản đồ (để trống trơn chờ khách bấm list)
+                // Dọn sạch ghim trên bản đồ
                 mapView.Pins.Clear();
+
+                // Tự động căn tâm bản đồ vào POI đầu tiên nếu có dữ liệu thực tế
+                if (_allPois.Count > 0)
+                {
+                    var first = _allPois[0];
+                    var (x, y) = Mapsui.Projections.SphericalMercator.FromLonLat(first.Longitude, first.Latitude);
+                    mapView.Map.Navigator.CenterOnAndZoomTo(new Mapsui.MPoint(x, y), 2.0);
+                }
+
                 mapView.Refresh();
 
-                // Bơm 5 địa điểm ra cái danh sách cvPoiList có sẵn của sếp!
+                // Cập nhật danh sách hiển thị
                 ApplyCategoryFilter();
             });
         }
