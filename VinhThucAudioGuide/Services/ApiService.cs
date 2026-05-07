@@ -7,10 +7,11 @@ namespace VinhThucAudioGuide.Services;
 public class ApiService
 {
     private readonly HttpClient _httpClient;
-    // CHÚ Ý: 
-    // 1. Dùng http://10.0.2.2:5000/api/ nếu chạy trên Giả lập Android (Emulator)
-    // 2. Dùng IP máy tính (VD: http://192.168.1.5:5000/api/) nếu chạy trên Điện thoại thật
-    private const string BaseUrl = "http://10.0.2.2:5000/api/"; 
+    // CHÚ Ý QUAN TRỌNG: 
+    // 1. Dùng http://10.0.2.2:5299/api/ nếu chạy trên GIẢ LẬP (Emulator)
+    // 2. Dùng IP máy tính (VD: http://192.168.1.5:5299/api/) nếu chạy trên MÁY THẬT (Redmi 10C)
+    // Bạn hãy thay địa chỉ IP dưới đây cho đúng với IP máy tính của bạn:
+    private const string BaseUrl = "http://192.168.1.13:5299/api/"; 
 
     public ApiService()
     {
@@ -54,11 +55,18 @@ public class ApiService
     /// </summary>
     public async Task RegisterDeviceAsync(string languageId)
     {
+        await SendHeartbeatAsync(languageId);
+    }
+
+    /// <summary>
+    /// Gửi tín hiệu Heartbeat để Server biết thiết bị vẫn đang online (thời gian thực)
+    /// </summary>
+    public async Task SendHeartbeatAsync(string languageId = null)
+    {
         try
         {
             if (Connectivity.Current.NetworkAccess != NetworkAccess.Internet) return;
 
-            // 1. Lấy hoặc tạo DeviceId duy nhất cho máy này
             var deviceId = Preferences.Default.Get("UniqueDeviceId", string.Empty);
             if (string.IsNullOrEmpty(deviceId))
             {
@@ -66,7 +74,13 @@ public class ApiService
                 Preferences.Default.Set("UniqueDeviceId", deviceId);
             }
 
-            // 2. Thu thập thông tin phần cứng
+            // Lấy languageId mặc định nếu không truyền vào
+            if (string.IsNullOrEmpty(languageId))
+            {
+                languageId = "00000000-0000-0000-0000-000000000000"; // Placeholder nếu chưa có dữ liệu
+            }
+
+            // Gửi ĐẦY ĐỦ dữ liệu mà DevicePreferenceUpsertDto yêu cầu để tránh bị Server từ chối
             var deviceDto = new
             {
                 DeviceId = deviceId,
@@ -79,13 +93,24 @@ public class ApiService
                 AutoPlay = true
             };
 
-            // 3. Gửi lên Server (API Upsert)
             await _httpClient.PostAsJsonAsync("device-preference", deviceDto);
         }
-        catch (Exception ex)
+        catch { /* Bỏ qua lỗi heartbeat */ }
+    }
+
+    /// <summary>
+    /// Thông báo cho Server biết thiết bị đã thoát App (để giảm số lượng Online ngay lập tức)
+    /// </summary>
+    public async Task NotifyOfflineAsync()
+    {
+        try
         {
-            Console.WriteLine($"Error registering device: {ex.Message}");
+            var deviceId = Preferences.Default.Get("UniqueDeviceId", string.Empty);
+            if (string.IsNullOrEmpty(deviceId)) return;
+
+            await _httpClient.PostAsync($"device-preference/{deviceId}/offline", null);
         }
+        catch { }
     }
 }
 

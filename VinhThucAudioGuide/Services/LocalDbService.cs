@@ -121,6 +121,12 @@ public class LocalDbService
         return await _db.Table<TourLocation>().ToListAsync();
     }
 
+    public async Task<List<Language>> GetAllLanguages()
+    {
+        await Init();
+        return await _db.Table<Language>().ToListAsync();
+    }
+
     public async Task<int> UpsertTourLocations(List<TourLocation> remoteList)
     {
         await Init();
